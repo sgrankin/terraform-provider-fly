@@ -986,6 +986,7 @@ const (
 	IPAddressTypeV4        IPAddressType = "v4"
 	IPAddressTypeV6        IPAddressType = "v6"
 	IPAddressTypePrivateV6 IPAddressType = "private_v6"
+	IPAddressTypeSharedV4  IPAddressType = "shared_v4"
 )
 
 // IpAddressQueryApp includes the requested fields of the GraphQL type App.
