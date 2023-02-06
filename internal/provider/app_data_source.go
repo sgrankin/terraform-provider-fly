@@ -2,10 +2,10 @@ package provider
 
 import (
 	"context"
+
 	"github.com/fly-apps/terraform-provider-fly/graphql"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -22,57 +22,50 @@ type appDataSourceOutput struct {
 	Healthchecks   []string     `tfsdk:"healthchecks"`
 	Ipaddresses    []string     `tfsdk:"ipaddresses"`
 	Currentrelease types.String `tfsdk:"currentrelease"`
-	//Secrets        types.Map    `tfsdk:"secrets"`
+	// Secrets        types.Map    `tfsdk:"secrets"`
 }
 
 func (d appDataSource) Metadata(_ context.Context, _ datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = "fly_app"
 }
 
-func (appDataSource) GetSchema(context.Context) (tfsdk.Schema, diag.Diagnostics) {
-	return tfsdk.Schema{
+func (appDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, rep *datasource.SchemaResponse) {
+	rep.Schema = schema.Schema{
 		MarkdownDescription: "Retrieve info about graphql app",
 
-		Attributes: map[string]tfsdk.Attribute{
-			"name": {
+		Attributes: map[string]schema.Attribute{
+			"name": schema.StringAttribute{
 				MarkdownDescription: "Name of app",
-				Type:                types.StringType,
 				Required:            true,
 			},
-			"appurl": {
-				Type:     types.StringType,
+			"appurl": schema.StringAttribute{
 				Computed: true,
 			},
-			"hostname": {
-				Type:     types.StringType,
+			"hostname": schema.StringAttribute{
 				Computed: true,
 			},
-			"id": {
-				Type:     types.StringType,
+			"id": schema.StringAttribute{
 				Computed: true,
 			},
-			"status": {
-				Type:     types.StringType,
+			"status": schema.StringAttribute{
 				Computed: true,
 			},
-			"deployed": {
-				Type:     types.BoolType,
+			"deployed": schema.BoolAttribute{
 				Computed: true,
 			},
-			"healthchecks": {
-				Computed: true,
-				Type:     types.ListType{ElemType: types.StringType},
+			"healthchecks": schema.ListAttribute{
+				Computed:    true,
+				ElementType: types.StringType,
 			},
-			"ipaddresses": {
-				Computed: true,
-				Type:     types.ListType{ElemType: types.StringType},
+			"ipaddresses": schema.ListAttribute{
+				Computed:    true,
+				ElementType: types.StringType,
 			},
-			"currentrelease": {
-				Type:     types.StringType,
+			"currentrelease": schema.StringAttribute{
 				Computed: true,
 			},
 		},
-	}, nil
+	}
 }
 
 func newAppDataSource() datasource.DataSource {
@@ -89,7 +82,7 @@ func (d appDataSource) Read(ctx context.Context, req datasource.ReadRequest, res
 		return
 	}
 
-	appName := data.Name.Value
+	appName := data.Name.ValueString()
 
 	queryresp, err := graphql.GetFullApp(context.Background(), d.gqlClient, appName)
 	if err != nil {
@@ -97,13 +90,13 @@ func (d appDataSource) Read(ctx context.Context, req datasource.ReadRequest, res
 	}
 
 	a := appDataSourceOutput{
-		Name:           types.String{Value: appName},
-		AppUrl:         types.String{Value: string(queryresp.App.AppUrl)},
-		Hostname:       types.String{Value: string(queryresp.App.Hostname)},
-		Id:             types.String{Value: string(queryresp.App.Id)},
-		Status:         types.String{Value: string(queryresp.App.Status)},
-		Deployed:       types.Bool{Value: queryresp.App.Deployed},
-		Currentrelease: types.String{Value: queryresp.App.CurrentRelease.Id},
+		Name:           types.StringValue(appName),
+		AppUrl:         types.StringValue(string(queryresp.App.AppUrl)),
+		Hostname:       types.StringValue(string(queryresp.App.Hostname)),
+		Id:             types.StringValue(string(queryresp.App.Id)),
+		Status:         types.StringValue(string(queryresp.App.Status)),
+		Deployed:       types.BoolValue(queryresp.App.Deployed),
+		Currentrelease: types.StringValue(queryresp.App.CurrentRelease.Id),
 		Healthchecks:   []string{},
 		Ipaddresses:    []string{},
 	}

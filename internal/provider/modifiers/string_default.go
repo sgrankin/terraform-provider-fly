@@ -3,6 +3,8 @@ package modifiers
 import (
 	"context"
 	"fmt"
+
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
@@ -30,24 +32,25 @@ func (m stringDefaultModifier) MarkdownDescription(ctx context.Context) string {
 // Access to the configuration, plan, and state is available in `req`, while
 // `resp` contains fields for updating the planned value, triggering resource
 // replacement, and returning diagnostics.
-func (m stringDefaultModifier) Modify(ctx context.Context, req tfsdk.ModifyAttributePlanRequest, resp *tfsdk.ModifyAttributePlanResponse) {
+func (m stringDefaultModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
 	// types.String must be the attr.Value produced by the attr.Type in the schema for this attribute
 	// for generic plan modifiers, use
 	// https://pkg.go.dev/github.com/hashicorp/terraform-plugin-framework/tfsdk#ConvertValue
 	// to convert into a known type.
 	var str types.String
-	diags := tfsdk.ValueAs(ctx, req.AttributePlan, &str)
+	diags := tfsdk.ValueAs(ctx, req.PlanValue, &str)
 	resp.Diagnostics.Append(diags...)
 	if diags.HasError() {
 		return
 	}
 
-	if !str.Null {
+	if !str.IsNull() {
 		return
 	}
 
-	resp.AttributePlan = types.String{Value: m.Default}
+	resp.PlanValue = types.StringValue(m.Default)
 }
+
 func StringDefault(defaultValue string) stringDefaultModifier {
 	return stringDefaultModifier{
 		Default: defaultValue,

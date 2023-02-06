@@ -3,10 +3,10 @@ package provider
 import (
 	"context"
 	"errors"
+
 	"github.com/fly-apps/terraform-provider-fly/graphql"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 )
@@ -28,47 +28,40 @@ func (d certDataSource) Metadata(_ context.Context, _ datasource.MetadataRequest
 	resp.TypeName = "fly_cert"
 }
 
-func (d certDataSource) GetSchema(context.Context) (tfsdk.Schema, diag.Diagnostics) {
-	return tfsdk.Schema{
+func (d certDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, rep *datasource.SchemaResponse) {
+	rep.Schema = schema.Schema{
 		MarkdownDescription: "Fly certificate data source",
-		Attributes: map[string]tfsdk.Attribute{
-			"app": {
+		Attributes: map[string]schema.Attribute{
+			"app": schema.StringAttribute{
 				MarkdownDescription: "Name of app that is attacjed",
 				Required:            true,
-				Type:                types.StringType,
 			},
-			"id": {
+			"id": schema.StringAttribute{
 				MarkdownDescription: "ID of address",
 				Computed:            true,
-				Type:                types.StringType,
 			},
-			"dnsvalidationinstructions": {
+			"dnsvalidationinstructions": schema.StringAttribute{
 				MarkdownDescription: "DnsValidationHostname",
-				Type:                types.StringType,
 				Computed:            true,
 			},
-			"dnsvalidationtarget": {
+			"dnsvalidationtarget": schema.StringAttribute{
 				MarkdownDescription: "DnsValidationTarget",
-				Type:                types.StringType,
 				Computed:            true,
 			},
-			"dnsvalidationhostname": {
+			"dnsvalidationhostname": schema.StringAttribute{
 				MarkdownDescription: "DnsValidationHostname",
-				Type:                types.StringType,
 				Computed:            true,
 			},
-			"check": {
+			"check": schema.BoolAttribute{
 				MarkdownDescription: "check",
-				Type:                types.BoolType,
 				Computed:            true,
 			},
-			"hostname": {
+			"hostname": schema.StringAttribute{
 				MarkdownDescription: "hostname",
-				Type:                types.StringType,
 				Required:            true,
 			},
 		},
-	}, nil
+	}
 }
 
 func newCertDataSource() datasource.DataSource {
@@ -85,8 +78,8 @@ func (d certDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 		return
 	}
 
-	hostname := data.Hostname.Value
-	app := data.Appid.Value
+	hostname := data.Hostname.ValueString()
+	app := data.Appid.ValueString()
 
 	query, err := graphql.GetCertificate(context.Background(), d.gqlClient, app, hostname)
 	var errList gqlerror.List
@@ -102,13 +95,13 @@ func (d certDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 	}
 
 	data = certDataSourceOutput{
-		Id:                        types.String{Value: query.App.Certificate.Id},
-		Appid:                     types.String{Value: data.Appid.Value},
-		Dnsvalidationinstructions: types.String{Value: query.App.Certificate.DnsValidationInstructions},
-		Dnsvalidationhostname:     types.String{Value: query.App.Certificate.DnsValidationHostname},
-		Dnsvalidationtarget:       types.String{Value: query.App.Certificate.DnsValidationTarget},
-		Hostname:                  types.String{Value: query.App.Certificate.Hostname},
-		Check:                     types.Bool{Value: query.App.Certificate.Check},
+		Id:                        types.StringValue(query.App.Certificate.Id),
+		Appid:                     types.StringValue(data.Appid.ValueString()),
+		Dnsvalidationinstructions: types.StringValue(query.App.Certificate.DnsValidationInstructions),
+		Dnsvalidationhostname:     types.StringValue(query.App.Certificate.DnsValidationHostname),
+		Dnsvalidationtarget:       types.StringValue(query.App.Certificate.DnsValidationTarget),
+		Hostname:                  types.StringValue(query.App.Certificate.Hostname),
+		Check:                     types.BoolValue(query.App.Certificate.Check),
 	}
 
 	diags = resp.State.Set(ctx, &data)

@@ -4,11 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/fly-apps/terraform-provider-fly/graphql"
-	"github.com/fly-apps/terraform-provider-fly/internal/provider/modifiers"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/vektah/gqlparser/v2/gqlerror"
@@ -29,40 +28,32 @@ func (i ipDataSource) Metadata(_ context.Context, _ datasource.MetadataRequest, 
 	resp.TypeName = "fly_ip"
 }
 
-func (i ipDataSource) GetSchema(context.Context) (tfsdk.Schema, diag.Diagnostics) {
-	return tfsdk.Schema{
+func (i ipDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, rep *datasource.SchemaResponse) {
+	rep.Schema = schema.Schema{
 		MarkdownDescription: "Fly ip data source",
-		Attributes: map[string]tfsdk.Attribute{
-			"address": {
+		Attributes: map[string]schema.Attribute{
+			"address": schema.StringAttribute{
 				MarkdownDescription: "ID of volume",
-				Type:                types.StringType,
 				Computed:            true,
 			},
-			"app": {
+			"app": schema.StringAttribute{
 				MarkdownDescription: "Name of app to attach",
 				Required:            true,
-				Type:                types.StringType,
 			},
-			"id": {
+			"id": schema.StringAttribute{
 				MarkdownDescription: "ID of address",
 				Computed:            true,
-				Type:                types.StringType,
 			},
-			"type": {
+			"type": schema.StringAttribute{
 				MarkdownDescription: "v4 or v6",
-				Type:                types.StringType,
 				Required:            true,
 			},
-			"region": {
+			"region": schema.StringAttribute{
 				MarkdownDescription: "region",
-				Type:                types.StringType,
 				Computed:            true,
-				PlanModifiers: tfsdk.AttributePlanModifiers{
-					modifiers.StringDefault("global"),
-				},
 			},
 		},
-	}, nil
+	}
 }
 
 func newIpDataSource() datasource.DataSource {
@@ -79,8 +70,8 @@ func (i ipDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp
 		return
 	}
 
-	addr := data.Address.Value
-	app := data.Appid.Value
+	addr := data.Address.ValueString()
+	app := data.Appid.ValueString()
 
 	query, err := graphql.IpAddressQuery(context.Background(), i.gqlClient, app, addr)
 	tflog.Info(ctx, fmt.Sprintf("Query res: for %s %s %+v", app, addr, query))
@@ -98,11 +89,11 @@ func (i ipDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp
 	}
 
 	data = ipDataSourceOutput{
-		Id:      types.String{Value: query.App.IpAddress.Id},
-		Appid:   types.String{Value: data.Appid.Value},
-		Region:  types.String{Value: query.App.IpAddress.Region},
-		Type:    types.String{Value: string(query.App.IpAddress.Type)},
-		Address: types.String{Value: query.App.IpAddress.Address},
+		Id:      types.StringValue(query.App.IpAddress.Id),
+		Appid:   types.StringValue(data.Appid.ValueString()),
+		Region:  types.StringValue(query.App.IpAddress.Region),
+		Type:    types.StringValue(string(query.App.IpAddress.Type)),
+		Address: types.StringValue(query.App.IpAddress.Address),
 	}
 
 	diags = resp.State.Set(ctx, &data)

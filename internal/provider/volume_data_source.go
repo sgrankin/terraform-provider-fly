@@ -2,10 +2,10 @@ package provider
 
 import (
 	"context"
+
 	"github.com/fly-apps/terraform-provider-fly/graphql"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -25,43 +25,37 @@ func (v volumeDataSource) Metadata(_ context.Context, _ datasource.MetadataReque
 	resp.TypeName = "fly_volume"
 }
 
-func (v volumeDataSource) GetSchema(context.Context) (tfsdk.Schema, diag.Diagnostics) {
-	return tfsdk.Schema{
+func (v volumeDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, rep *datasource.SchemaResponse) {
+	rep.Schema = schema.Schema{
 		MarkdownDescription: "Fly volume resource",
-		Attributes: map[string]tfsdk.Attribute{
-			"id": {
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
 				MarkdownDescription: "ID of volume",
-				Type:                types.StringType,
 				Computed:            true,
 				Optional:            true,
 			},
-			"app": {
+			"app": schema.StringAttribute{
 				MarkdownDescription: "Name of app to attach",
 				Required:            true,
-				Type:                types.StringType,
 			},
-			"size": {
+			"size": schema.Int64Attribute{
 				MarkdownDescription: "Size of volume in gb",
 				Required:            true,
-				Type:                types.Int64Type,
 			},
-			"name": {
+			"name": schema.StringAttribute{
 				MarkdownDescription: "name",
-				Type:                types.StringType,
 				Required:            true,
 			},
-			"region": {
+			"region": schema.StringAttribute{
 				MarkdownDescription: "region",
-				Type:                types.StringType,
 				Required:            true,
 			},
-			"internalid": {
+			"internalid": schema.StringAttribute{
 				MarkdownDescription: "Internal ID",
-				Type:                types.StringType,
 				Required:            true,
 			},
 		},
-	}, nil
+	}
 }
 
 func NewVolumeDataSource() datasource.DataSource {
@@ -74,8 +68,8 @@ func (v volumeDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 	diags := req.Config.Get(ctx, &data)
 	resp.Diagnostics.Append(diags...)
 
-	internalId := data.Internalid.Value
-	app := data.Appid.Value
+	internalId := data.Internalid.ValueString()
+	app := data.Appid.ValueString()
 
 	query, err := graphql.VolumeQuery(context.Background(), v.gqlClient, app, internalId)
 	if err != nil {
@@ -83,12 +77,12 @@ func (v volumeDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 	}
 
 	data = volumeDataSourceOutput{
-		Id:         types.String{Value: query.App.Volume.Id},
-		Name:       types.String{Value: query.App.Volume.Name},
-		Size:       types.Int64{Value: int64(query.App.Volume.SizeGb)},
-		Appid:      types.String{Value: data.Appid.Value},
-		Region:     types.String{Value: query.App.Volume.Region},
-		Internalid: types.String{Value: query.App.Volume.InternalId},
+		Id:         types.StringValue(query.App.Volume.Id),
+		Name:       types.StringValue(query.App.Volume.Name),
+		Size:       types.Int64Value(int64(query.App.Volume.SizeGb)),
+		Appid:      types.StringValue(data.Appid.ValueString()),
+		Region:     types.StringValue(query.App.Volume.Region),
+		Internalid: types.StringValue(query.App.Volume.InternalId),
 	}
 
 	if resp.Diagnostics.HasError() {

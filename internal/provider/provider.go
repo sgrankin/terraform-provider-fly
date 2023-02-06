@@ -3,20 +3,21 @@ package provider
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"os"
+	"time"
+
 	"github.com/Khan/genqlient/graphql"
 	providerGraphql "github.com/fly-apps/terraform-provider-fly/graphql"
 	"github.com/fly-apps/terraform-provider-fly/internal/utils"
 	"github.com/fly-apps/terraform-provider-fly/internal/wg"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	hreq "github.com/imroc/req/v3"
-	"net/http"
-	"os"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	tfsdkprovider "github.com/hashicorp/terraform-plugin-framework/provider"
-	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -68,17 +69,17 @@ func (p *provider) Configure(ctx context.Context, req tfsdkprovider.ConfigureReq
 	}
 
 	var token string
-	if data.FlyToken.Unknown {
+	if data.FlyToken.IsUnknown() {
 		resp.Diagnostics.AddWarning(
 			"Unable to create gqlClient",
 			"Cannot use unknown value as token",
 		)
 		return
 	}
-	if data.FlyToken.Null || data.FlyToken.Unknown {
+	if data.FlyToken.IsNull() || data.FlyToken.IsUnknown() {
 		token = os.Getenv("FLY_API_TOKEN")
 	} else {
-		token = data.FlyToken.Value
+		token = data.FlyToken.ValueString()
 	}
 	if token == "" {
 		resp.Diagnostics.AddError(
@@ -92,8 +93,8 @@ func (p *provider) Configure(ctx context.Context, req tfsdkprovider.ConfigureReq
 
 	endpoint, exists := os.LookupEnv("FLY_HTTP_ENDPOINT")
 	httpEndpoint := "127.0.0.1:4280"
-	if !data.FlyHttpEndpoint.Null && !data.FlyHttpEndpoint.Unknown {
-		httpEndpoint = data.FlyHttpEndpoint.Value
+	if !data.FlyHttpEndpoint.IsNull() && !data.FlyHttpEndpoint.IsUnknown() {
+		httpEndpoint = data.FlyHttpEndpoint.ValueString()
 	} else if exists {
 		httpEndpoint = endpoint
 	}
@@ -123,13 +124,13 @@ func (p *provider) Configure(ctx context.Context, req tfsdkprovider.ConfigureReq
 	client := graphql.NewClient("https://api.fly.io/graphql", &h)
 	clients.gqlClient = *(*gqlClient)(&client)
 
-	if data.UseInternalTunnel.Value {
-		org, err := providerGraphql.Organization(context.Background(), client, data.InternalTunnelOrg.Value)
+	if data.UseInternalTunnel.ValueBool() {
+		org, err := providerGraphql.Organization(context.Background(), client, data.InternalTunnelOrg.ValueString())
 		if err != nil {
 			resp.Diagnostics.AddError("Could not resolve organization", err.Error())
 			return
 		}
-		tunnel, err := wg.Establish(ctx, org.Organization.Id, data.InternalTunnelRegion.Value, token, &client)
+		tunnel, err := wg.Establish(ctx, org.Organization.Id, data.InternalTunnelRegion.ValueString(), token, &client)
 		if err != nil {
 			resp.Diagnostics.AddError("failed to open internal tunnel", err.Error())
 			return
@@ -159,34 +160,33 @@ func (p *provider) DataSources(ctx context.Context) []func() datasource.DataSour
 		newIpDataSource,
 	}
 }
+func (p *provider) Metadata(_ context.Context, _ tfsdkprovider.MetadataRequest, rep *tfsdkprovider.MetadataResponse) {
+	rep.TypeName = "fly"
+	rep.Version = p.version
+}
 
-func (p *provider) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
-	return tfsdk.Schema{
-		Attributes: map[string]tfsdk.Attribute{
-			"fly_api_token": {
+func (p *provider) Schema(ctx context.Context, _ tfsdkprovider.SchemaRequest, rep *tfsdkprovider.SchemaResponse) {
+	rep.Schema = schema.Schema{
+		Attributes: map[string]schema.Attribute{
+			"fly_api_token": schema.StringAttribute{
 				MarkdownDescription: "fly.io api token. If not set checks env for FLY_API_TOKEN",
 				Optional:            true,
-				Type:                types.StringType,
 			},
-			"fly_http_endpoint": {
+			"fly_http_endpoint": schema.StringAttribute{
 				MarkdownDescription: "Where the clients should look to find the fly http endpoint",
 				Optional:            true,
-				Type:                types.StringType,
 			},
-			"useinternaltunnel": {
+			"useinternaltunnel": schema.BoolAttribute{
 				Optional: true,
-				Type:     types.BoolType,
 			},
-			"internaltunnelorg": {
+			"internaltunnelorg": schema.StringAttribute{
 				Optional: true,
-				Type:     types.StringType,
 			},
-			"internaltunnelregion": {
+			"internaltunnelregion": schema.StringAttribute{
 				Optional: true,
-				Type:     types.StringType,
 			},
 		},
-	}, nil
+	}
 }
 
 func New(version string) func() tfsdkprovider.Provider {

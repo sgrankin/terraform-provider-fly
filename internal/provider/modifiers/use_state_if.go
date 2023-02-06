@@ -2,14 +2,15 @@ package modifiers
 
 import (
 	"context"
+
 	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 )
 
-type UseStateForUnknownIfFunc func(ctx context.Context, req tfsdk.ModifyAttributePlanRequest) (bool, diag.Diagnostics)
+type UseStateForUnknownIfFunc func(ctx context.Context, req planmodifier.StringRequest) (bool, diag.Diagnostics)
 
 // UseStateForUnknownIf is like UseStateForUnknown, but conditional
-func UseStateForUnknownIf(condition UseStateForUnknownIfFunc) tfsdk.AttributePlanModifier {
+func UseStateForUnknownIf(condition UseStateForUnknownIfFunc) planmodifier.String {
 	return useStateForUnknownIfModifier{condition}
 }
 
@@ -21,36 +22,32 @@ type useStateForUnknownIfModifier struct {
 
 // Modify copies the attribute's prior state to the attribute plan if the prior
 // state value is not null.
-func (r useStateForUnknownIfModifier) Modify(ctx context.Context, req tfsdk.ModifyAttributePlanRequest, resp *tfsdk.ModifyAttributePlanResponse) {
-	if req.AttributeState == nil || resp.AttributePlan == nil || req.AttributeConfig == nil {
-		return
-	}
-
+func (r useStateForUnknownIfModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
 	// if we have no state value, there's nothing to preserve
-	if req.AttributeState.IsNull() {
+	if req.StateValue.IsNull() {
 		return
 	}
 
 	// if it's not planned to be the unknown value, stick with the concrete plan
-	if !resp.AttributePlan.IsUnknown() {
+	if !resp.PlanValue.IsUnknown() {
 		return
 	}
 
 	// if the config is the unknown value, use the unknown value otherwise, interpolation gets messed up
-	if req.AttributeConfig.IsUnknown() {
+	if req.ConfigValue.IsUnknown() {
 		return
 	}
 
 	ok, diags := r.condition(ctx, req)
 	resp.Diagnostics.Append(diags...)
-	if diags.HasError() {
+	if resp.Diagnostics.HasError() {
 		return
 	}
 	if !ok {
 		return
 	}
 
-	resp.AttributePlan = req.AttributeState
+	resp.PlanValue = req.StateValue
 }
 
 func (r useStateForUnknownIfModifier) Description(context.Context) string {

@@ -6,13 +6,9 @@ import (
 )
 
 func KVToTfMap(kv map[string]string, elemType attr.Type) types.Map {
-	var TFMap types.Map
-	TFMap.ElemType = elemType
+	elements := map[string]attr.Value{}
 	for key, value := range kv {
-		if TFMap.Elems == nil {
-			TFMap.Elems = map[string]attr.Value{}
-		}
-		TFMap.Elems[key] = types.String{Value: value}
+		elements[key] = types.StringValue(value)
 	}
-	return TFMap
+	return types.MapValueMust(elemType, elements)
 }
