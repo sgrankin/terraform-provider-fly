@@ -313,7 +313,7 @@ func (mr flyMachineResource) Create(ctx context.Context, req resource.CreateRequ
 		createReq.Config.Mounts = mounts
 	}
 
-	machineAPI := apiv1.NewMachineAPI(&mr.httpClient, mr.httpEndpoint)
+	machineAPI := apiv1.NewMachineAPI(mr.httpClient, mr.httpEndpoint)
 
 	var newMachine apiv1.MachineResponse
 	err = machineAPI.CreateMachine(createReq, data.App.ValueString(), &newMachine)
@@ -386,7 +386,7 @@ func (mr flyMachineResource) Read(ctx context.Context, req resource.ReadRequest,
 	diags := req.State.Get(ctx, &data)
 	resp.Diagnostics.Append(diags...)
 
-	machineAPI := apiv1.NewMachineAPI(&mr.httpClient, mr.httpEndpoint)
+	machineAPI := apiv1.NewMachineAPI(mr.httpClient, mr.httpEndpoint)
 
 	var machine apiv1.MachineResponse
 
@@ -522,7 +522,7 @@ func (mr flyMachineResource) Update(ctx context.Context, req resource.UpdateRequ
 		updateReq.Config.Mounts = mounts
 	}
 
-	machineApi := apiv1.NewMachineAPI(&mr.httpClient, mr.httpEndpoint)
+	machineApi := apiv1.NewMachineAPI(mr.httpClient, mr.httpEndpoint)
 
 	var updatedMachine apiv1.MachineResponse
 
@@ -588,7 +588,7 @@ func (mr flyMachineResource) Delete(ctx context.Context, req resource.DeleteRequ
 		resp.Diagnostics.AddError("fly wireguard tunnel must be open", err.Error())
 	}
 
-	machineApi := apiv1.NewMachineAPI(&mr.httpClient, mr.httpEndpoint)
+	machineApi := apiv1.NewMachineAPI(mr.httpClient, mr.httpEndpoint)
 
 	err = machineApi.DeleteMachine(data.App.ValueString(), data.Id.ValueString(), 50)
 
